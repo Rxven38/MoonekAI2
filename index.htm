@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MoonekAI • chat</title>
+
+  <style>
+    :root {
+      --bg: #0d1117;
+      --sidebar-bg: #161b22;
+      --accent: #58a6ff;
+      --accent-hover: #388bfd;
+      --text: #c9d1d9;
+      --text-dim: #8b949e;
+      --border: #30363d;
+      --msg-user: #238636;
+      --msg-ai: #21262d;
+      --avatar-bg: #238636;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    #sidebar {
+      width: 260px;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+    }
+
+    .logo {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--accent);
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    .version {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    #new-chat-btn {
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 16px;
+      transition: background 0.2s;
+    }
+
+    #new-chat-btn:hover {
+      background: var(--accent-hover);
+    }
+
+    #chat-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .chat-item {
+      padding: 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+      position: relative;
+    }
+
+    .chat-item:hover, .chat-item.active {
+      background: rgba(88,166,255,0.1);
+    }
+
+    .chat-item .title {
+      font-weight: 500;
+      font-size: 0.95rem;
+    }
+
+    .chat-item .preview {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      margin-top: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chat-item .menu-btn {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      opacity: 0;
+      font-size: 1.2rem;
+      color: var(--text-dim);
+      cursor: pointer;
+    }
+
+    .chat-item:hover .menu-btn {
+      opacity: 0.7;
+    }
+
+    .context-menu {
+      position: absolute;
+      right: 0;
+      top: 100%;
+      background: #21262d;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      z-index: 100;
+      min-width: 140px;
+      display: none;
+    }
+
+    .context-menu div {
+      padding: 8px 16px;
+      cursor: pointer;
+    }
+
+    .context-menu div:hover {
+      background: rgba(88,166,255,0.15);
+    }
+
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #main-header {
+      padding: 16px 24px;
+      background: var(--sidebar-bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .message {
+      max-width: 70%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      line-height: 1.5;
+      font-size: 1.05rem;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: var(--msg-user);
+      color: white;
+    }
+
+    .message.ai {
+      align-self: flex-start;
+      background: var(--msg-ai);
+      border: 1px solid var(--border);
+    }
+
+    .message.ai strong {
+      display: block;
+      font-size: 0.9rem;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+
+    .input-area {
+      padding: 16px 24px;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      display: none; /* pokaże się po zalogowaniu */
+    }
+
+    .input-wrapper {
+      display: flex;
+      background: #161b22;
+      border-radius: 999px;
+      padding: 8px;
+      border: 1px solid var(--border);
+    }
+
+    textarea {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 1.05rem;
+      padding: 8px 16px;
+      resize: none;
+      min-height: 48px;
+      max-height: 160px;
+      line-height: 1.4;
+    }
+
+    textarea:focus { outline: none; }
+
+    button#sendBtn {
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      margin: 0 4px;
+      cursor: pointer;
+      font-size: 1.4rem;
+      transition: background 0.2s;
+    }
+
+    button#sendBtn:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    button#sendBtn:disabled {
+      background: #30363d;
+      cursor: not-allowed;
+    }
+
+    #user-profile {
+      position: absolute;
+      bottom: 24px;
+      left: 24px;
+      width: 56px;
+      height: 56px;
+      background: var(--avatar-bg);
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 1.5rem;
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    #profile-menu {
+      position: absolute;
+      bottom: 90px;
+      left: 24px;
+      background: #161b22;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      z-index: 100;
+      min-width: 160px;
+      display: none;
+    }
+
+    #profile-menu div {
+      padding: 12px 20px;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+
+    #profile-menu div:hover {
+      background: rgba(88,166,255,0.15);
+    }
+
+    #auth-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    .modal-content {
+      background: #161b22;
+      padding: 40px 32px;
+      border-radius: 16px;
+      width: 440px;
+      max-width: 92%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+      border: 1px solid var(--border);
+    }
+
+    .modal-content h2 {
+      text-align: center;
+      margin-bottom: 28px;
+      font-size: 1.8rem;
+      color: var(--text);
+    }
+
+    .modal-content input {
+      width: 100%;
+      padding: 14px 16px;
+      margin: 12px 0;
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 1.05rem;
+    }
+
+    .modal-content input:focus {
+      border-color: var(--accent);
+      outline: none;
+    }
+
+    .modal-content button {
+      width: 100%;
+      padding: 14px;
+      margin: 12px 0;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-weight: 600;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .modal-content button:hover {
+      background: var(--accent-hover);
+    }
+
+    .modal-content .google-btn {
+      background: #4285f4;
+    }
+
+    .modal-content .google-btn:hover {
+      background: #3367d6;
+    }
+
+    .modal-content .switch-link {
+      text-align: center;
+      margin-top: 20px;
+      color: var(--accent);
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div id="sidebar-header">
+    <div class="logo">MoonekAI</div>
+    <div class="version">0.05v</div>
+  </div>
+
+  <button id="new-chat-btn">Nowy czat</button>
+
+  <div id="chat-list"></div>
+
+  <div id="user-profile" style="display:none;"></div>
+</div>
+
+<div id="main">
+  <div id="main-header">
+    <div class="logo">MoonekAI</div>
+    <div class="version">0.05v</div>
+  </div>
+
+  <div class="chat-container" id="chat"></div>
+
+  <div class="input-area" id="inputArea" style="display:none;">
+    <div class="input-wrapper">
+      <textarea id="userInput" rows="1" placeholder="Napisz wiadomość..." autocomplete="off"></textarea>
+      <button id="sendBtn" disabled>➤</button>
+    </div>
+  </div>
+</div>
+
+<div id="auth-modal">
+  <div class="modal-content">
+    <h2 id="modalTitle">Zaloguj się lub zarejestruj</h2>
+
+    <div id="registerFields" style="display:none;">
+      <input type="text" id="usernameInput" placeholder="Nazwa użytkownika" required>
+    </div>
+
+    <input type="email" id="emailInput" placeholder="Email" required>
+    <input type="password" id="passwordInput" placeholder="Hasło" required>
+
+    <button id="submitAuthBtn">Zaloguj się</button>
+
+    <button class="google-btn" id="googleSignInBtn">Kontynuuj z Google</button>
+
+    <div class="switch-link" id="switchAuth">Nie masz konta? Zarejestruj się</div>
+  </div>
+</div>
+
+<div id="profile-menu">
+  <div id="logoutBtn">Wyloguj się</div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCLIM13yFfdlkAF2UHzbP67FE0AmtA1BFU",
+    authDomain: "moonekai.firebaseapp.com",
+    projectId: "moonekai",
+    storageBucket: "moonekai.firebasestorage.app",
+    messagingSenderId: "772453016046",
+    appId: "1:772453016046:web:caabeb9e0f41a55c91aeff",
+    measurementId: "G-3LE0S7R2YR"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const googleProvider = new GoogleAuthProvider();
+
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log("DOM załadowany – uruchamiam MoonekAI");
+
+    let chats = JSON.parse(localStorage.getItem('moonekChats')) || [];
+    let currentChatId = chats.length > 0 ? chats[0].id : Date.now().toString();
+
+    const COOLDOWN_TIME = 10000;
+    const COOLDOWN_KEY = 'moonek_newChatCooldownUntil';
+    const TYPING_SPEED = 32;
+    const VERSION = "0.05v";
+
+    function createNewChat() {
+      const id = Date.now().toString();
+      const newChat = { id, title: 'Nowy czat', messages: [] };
+      chats.unshift(newChat);
+      localStorage.setItem('moonekChats', JSON.stringify(chats));
+      return id;
+    }
+
+    function saveChats() {
+      localStorage.setItem('moonekChats', JSON.stringify(chats));
+    }
+
+    function getCurrentChat() {
+      return chats.find(c => c.id === currentChatId) || { messages: [] };
+    }
+
+    function renderChatList() {
+      const list = document.getElementById('chat-list');
+      list.innerHTML = '';
+      chats.forEach(chat => {
+        const item = document.createElement('div');
+        item.className = `chat-item${chat.id === currentChatId ? ' active' : ''}`;
+        item.innerHTML = `
+          <div>
+            <div class="title">${chat.title}</div>
+            <div class="preview">${chat.messages.length > 0 ? chat.messages[0].text.substring(0, 55) + '…' : 'Pusty czat'}</div>
+          </div>
+          <span class="menu-btn">⋯</span>
+          <div class="context-menu">
+            <div class="rename-btn">Zmień nazwę</div>
+            <div class="delete-btn">Usuń</div>
+          </div>
+        `;
+
+        item.addEventListener('click', (e) => {
+          if (!e.target.closest('.menu-btn') && !e.target.closest('.context-menu')) {
+            currentChatId = chat.id;
+            renderChatList();
+            loadCurrentChat();
+          }
+        });
+
+        item.addEventListener('mouseenter', () => {
+          item.querySelector('.menu-btn').style.opacity = '1';
+        });
+        item.addEventListener('mouseleave', () => {
+          const menu = item.querySelector('.context-menu');
+          if (!menu.matches(':hover')) {
+            item.querySelector('.menu-btn').style.opacity = '0';
+            menu.style.display = 'none';
+          }
+        });
+
+        item.querySelector('.menu-btn')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const menu = item.querySelector('.context-menu');
+          document.querySelectorAll('.context-menu').forEach(m => m.style.display = 'none');
+          menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        });
+
+        item.querySelector('.rename-btn')?.addEventListener('click', () => {
+          const newTitle = prompt("Nowa nazwa czatu:", chat.title);
+          if (newTitle?.trim()) {
+            chat.title = newTitle.trim();
+            saveChats();
+            renderChatList();
+          }
+        });
+
+        item.querySelector('.delete-btn')?.addEventListener('click', () => {
+          if (confirm("Na pewno usunąć ten czat?")) {
+            chats = chats.filter(c => c.id !== chat.id);
+            if (currentChatId === chat.id) currentChatId = chats[0]?.id || createNewChat();
+            saveChats();
+            renderChatList();
+            loadCurrentChat();
+          }
+        });
+
+        list.appendChild(item);
+      });
+    }
+
+    function loadCurrentChat() {
+      document.getElementById('chat').innerHTML = '';
+      getCurrentChat().messages.forEach(msg => addMessage(msg.text, msg.who, false));
+    }
+
+    function escapeHtml(text) {
+      return text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+    }
+
+    async function addMessage(content, who = "user", save = true) {
+      const chat = document.getElementById('chat');
+
+      if (who === "user") {
+        const div = document.createElement("div");
+        div.className = "message user";
+        div.textContent = content;
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+
+        if (save) {
+          const current = getCurrentChat();
+          current.messages.push({ text: content, who });
+          if (current.messages.length === 1) {
+            current.title = content.substring(0, 38) + (content.length > 38 ? '…' : '');
+            saveChats();
+            renderChatList();
+          }
+        }
+        return;
+      }
+
+      const messageDiv = document.createElement("div");
+      messageDiv.className = "message ai";
+      messageDiv.innerHTML = `<strong>MoonekAI</strong><div class="message-content"></div>`;
+
+      const contentDiv = messageDiv.querySelector(".message-content");
+      const typing = document.createElement("div");
+      typing.className = "typing-indicator";
+      typing.textContent = "to zajmie chwilkę… 😅";
+      messageDiv.appendChild(typing);
+
+      chat.appendChild(messageDiv);
+      chat.scrollTop = chat.scrollHeight;
+
+      let displayed = "";
+      let i = 0;
+
+      const interval = setInterval(() => {
+        if (i < content.length) {
+          displayed += content[i++];
+          let html = displayed.replace(
+            /```(\w+)?\s*([\s\S]*?)(?=```|$)/g,
+            (m, lang, code) => {
+              const closed = m.endsWith("```");
+              const shown = closed ? code.trim() : code.trim() + "...";
+              return `<div class="code-block ${closed ? '' : 'code-block-incomplete'}">
+                <div class="code-header"><span>${lang || (closed ? 'tekst' : 'pisanie...')}</span>${closed ? '<button class="copy-btn">Kopiuj</button>' : ''}</div>
+                <pre class="code-content">${escapeHtml(shown)}</pre>
+              </div>`;
+            }
+          ).replace(/\n(?!<)/g, '<br>');
+          contentDiv.innerHTML = html;
+          chat.scrollTop = chat.scrollHeight;
+        } else {
+          clearInterval(interval);
+          typing.remove();
+          let final = content.replace(
+            /```(\w+)?\n?([\s\S]*?)```/g,
+            (m, lang, code) => `<div class="code-block">
+              <div class="code-header"><span>${lang || 'tekst'}</span><button class="copy-btn">Kopiuj</button></div>
+              <pre class="code-content">${escapeHtml(code.trim())}</pre>
+            </div>`
+          ).replace(/\n/g, '<br>');
+          contentDiv.innerHTML = final;
+          chat.scrollTop = chat.scrollHeight;
+        }
+      }, TYPING_SPEED);
+
+      if (save) {
+        getCurrentChat().messages.push({ text: content, who: "ai" });
+        saveChats();
+      }
+    }
+
+    async function sendMessage() {
+      const text = document.getElementById('userInput').value.trim();
+      if (!text) return;
+
+      addMessage(text, "user");
+      document.getElementById('userInput').value = "";
+      document.getElementById('sendBtn').disabled = true;
+
+      const thinking = document.createElement("div");
+      thinking.className = "message ai";
+      thinking.innerHTML = "MoonekAI<br><small>myśli…</small>";
+      document.getElementById('chat').appendChild(thinking);
+
+      const reply = await callMoonekAI(text);
+      document.getElementById('chat').removeChild(thinking);
+      addMessage(reply, "ai");
+
+      document.getElementById('sendBtn').disabled = false;
+      document.getElementById('userInput').focus();
+    }
+
+    async function callMoonekAI(text) {
+      try {
+        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer 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",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "http://localhost",
+            "X-Title": "MoonekAI 0.05v"
+          },
+          body: JSON.stringify({
+            model: "tngtech/deepseek-r1t2-chimera:free",
+            messages: [
+              { role: "system", content: "Jesteś MoonekAI. Odpowiadaj po polsku, z humorem i emotkami 😈🌙" },
+              { role: "user", content: text }
+            ],
+            temperature: 0.85,
+            max_tokens: 1400
+          })
+        });
+        const json = await res.json();
+        return json.choices[0].message.content.trim() || "…";
+      } catch (e) {
+        return "Ups… coś nie pykło 😅";
+      }
+    }
+
+    // Firebase Auth
+    onAuthStateChanged(auth, (u) => {
+      if (u) {
+        const username = u.displayName || u.email.split('@')[0];
+        const profile = document.getElementById('user-profile');
+        profile.style.display = "flex";
+        profile.textContent = username[0].toUpperCase();
+        profile.title = username;
+
+        profile.onclick = () => {
+          const menu = document.getElementById('profile-menu');
+          menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        };
+
+        document.getElementById('logoutBtn').onclick = () => signOut(auth);
+
+        document.getElementById('inputArea').style.display = 'block';
+        document.getElementById('auth-modal').style.display = 'none';
+      } else {
+        document.getElementById('user-profile').style.display = "none";
+        document.getElementById('inputArea').style.display = 'none';
+        document.getElementById('auth-modal').style.display = 'flex';
+      }
+    });
+
+    // Obowiązkowy modal na start
+    document.getElementById('auth-modal').style.display = 'flex';
+    document.getElementById('inputArea').style.display = 'none';
+
+    // Modal funkcje
+    function showAuthModal(isRegister = false) {
+      const title = document.getElementById('modalTitle');
+      const registerFields = document.getElementById('registerFields');
+      const submitBtn = document.getElementById('submitAuthBtn');
+      const switchLink = document.getElementById('switchAuth');
+
+      title.textContent = isRegister ? "Zarejestruj się" : "Zaloguj się";
+      registerFields.style.display = isRegister ? "block" : "none";
+      submitBtn.textContent = isRegister ? "Zarejestruj się" : "Zaloguj się";
+      switchLink.textContent = isRegister ? "Masz już konto? Zaloguj się" : "Nie masz konta? Zarejestruj się";
+    }
+
+    document.getElementById('switchAuth').onclick = () => {
+      showAuthModal(document.getElementById('modalTitle').textContent === "Zaloguj się");
+    };
+
+    document.getElementById('submitAuthBtn').onclick = async () => {
+      const email = document.getElementById('emailInput').value.trim();
+      const password = document.getElementById('passwordInput').value.trim();
+      const username = document.getElementById('usernameInput')?.value.trim();
+      const isRegister = document.getElementById('modalTitle').textContent === "Zarejestruj się";
+
+      if (!email || !password) return alert("Wypełnij email i hasło!");
+
+      try {
+        if (isRegister) {
+          if (!username) return alert("Podaj nazwę użytkownika!");
+          const cred = await createUserWithEmailAndPassword(auth, email, password);
+          await updateProfile(cred.user, { displayName: username });
+        } else {
+          await signInWithEmailAndPassword(auth, email, password);
+        }
+      } catch (e) {
+        alert("Błąd: " + e.message);
+      }
+    };
+
+    document.getElementById('googleSignInBtn').onclick = async () => {
+      try {
+        await signInWithPopup(auth, googleProvider);
+      } catch (e) {
+        alert("Błąd Google: " + e.message);
+      }
+    };
+
+    // Start czatu
+    renderChatList();
+    loadCurrentChat();
+
+    if (getCurrentChat().messages.length === 0) {
+      addMessage("Cześć! MoonekAI " + VERSION + " gotowy 🌙\nZaloguj się najpierw 😈", "ai", false);
+    }
+
+    document.getElementById('sendBtn').onclick = sendMessage;
+    document.getElementById('userInput').addEventListener('keydown', e => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+    document.getElementById('userInput').addEventListener('input', () => {
+      document.getElementById('sendBtn').disabled = !document.getElementById('userInput').value.trim();
+    });
+
+    document.getElementById('new-chat-btn').onclick = () => {
+      currentChatId = createNewChat();
+      renderChatList();
+      loadCurrentChat();
+    };
+  });
+  </script>
+</body>
+</html>
